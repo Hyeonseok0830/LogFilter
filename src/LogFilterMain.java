@@ -1,4 +1,5 @@
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -10,6 +11,7 @@ import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
 import java.awt.HeadlessException;
 import java.awt.Insets;
+import java.awt.Window;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.dnd.DnDConstants;
@@ -31,6 +33,7 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -62,6 +65,8 @@ import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
 import javax.swing.event.ChangeEvent;
@@ -70,13 +75,17 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.plaf.basic.BasicLookAndFeel;
+import com.formdev.flatlaf.*;
+
+
 
 public class LogFilterMain extends JFrame implements INotiEvent
 {
     private static final long serialVersionUID           = 1L;
     
     static final String       LOGFILTER                  = "LogFilter";
-    static final String       VERSION                    = "Version 1.8";
+    static final String       VERSION                    = "Version 2.0";
     final String              COMBO_ANDROID              = "Android          ";
     final String              COMBO_IOS                  = "ios";
     final String              COMBO_CUSTOM_COMMAND       = "custom command";
@@ -93,8 +102,8 @@ public class LogFilterMain extends JFrame implements INotiEvent
 //    final String              ANDROID_SELECTED_CMD_LAST  = " logcat -v time ";
     final String[]            DEVICES_CMD                = {"adb devices", "", ""};
     
-    static final int          DEFAULT_WIDTH              = 1200;
-    static final int          DEFAULT_HEIGHT             = 720;
+    static final int          DEFAULT_WIDTH              = 1600;
+    static final int          DEFAULT_HEIGHT             = 800;
     static final int          MIN_WIDTH                  = 1100;
     static final int          MIN_HEIGHT                 = 500;
     
@@ -121,7 +130,7 @@ public class LogFilterMain extends JFrame implements INotiEvent
     HashMap<Integer, Integer> m_hmErrorAll;
     HashMap<Integer, Integer> m_hmErrorFiltered;
     ILogParser                m_iLogParser;
-    LogTable                  m_tbLogTable;
+    static LogTable                  m_tbLogTable;
 //    TagTable                    m_tbTagTable;
     JScrollPane               m_scrollVBar;
 //    JScrollPane                 m_scrollVTagBar;
@@ -200,17 +209,19 @@ public class LogFilterMain extends JFrame implements INotiEvent
     int                       m_nLastWidth;
     int                       m_nLastHeight;
     int                       m_nWindState;
-    static RecentFileMenu     m_recentMenu;
-//    String                    m_strLastDir;
+    static int                m_theme;
+	static RecentFileMenu m_recentMenu;
+	static String adb_path;
 
-    public static void main(final String args[])
-    {
+	public static void main(final String args[]) {
+
+		
 //        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
+    	checkcommand();
         final LogFilterMain mainFrame = new LogFilterMain();
         mainFrame.setTitle(LOGFILTER + " " + VERSION);
 //        mainFrame.addWindowListener(new WindowEventHandler());
-
+        mainFrame.setSize(1600,800);
         JMenuBar menubar = new JMenuBar();
         JMenu file = new JMenu("File");
         file.setMnemonic(KeyEvent.VK_F);
@@ -236,8 +247,255 @@ public class LogFilterMain extends JFrame implements INotiEvent
         file.add(m_recentMenu);
 
         menubar.add(file);
-        mainFrame.setJMenuBar(menubar);
         
+        
+        JMenu theme = new JMenu("Theme");
+        JMenuItem default_theme = new JMenuItem("Default Theme");
+        default_theme.setToolTipText("change default theme");
+        default_theme.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+        		try {
+        			for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+        				if ("Metal".equals(info.getName())) {
+        					javax.swing.UIManager.setLookAndFeel(info.getClassName());
+        					m_theme=0;
+        					m_tbLogTable.setBackground(Color.WHITE);
+                			m_tbLogTable.init(m_theme,false);
+        					LogColor.COLOR_5 = Integer.parseInt("0x00000000".replace("0x", ""), 16);
+                			LogColor.COLOR_INFO  = LogColor.COLOR_6 = Integer.parseInt("0x00009A00".replace("0x", ""), 16);
+        					LogColor.COLOR_DEBUG = LogColor.COLOR_7 = Integer.parseInt("0x000000AA".replace("0x", ""), 16);
+        					LogColor.COLOR_BOOKMARK = Integer.parseInt("0x00DDDDDD".replace("0x", ""), 16);
+        					LogColor.COLOR_BOOKMARK2 = Integer.parseInt("0x00DDDDFF".replace("0x", ""), 16);
+        					break;
+        				}
+        			}
+        			Window[] windows = Window.getWindows ();
+                    if ( windows.length > 0 )
+                    {
+                        for ( Window window : windows )
+                        {
+                            SwingUtilities.updateComponentTreeUI ( window );
+                           // window.pack ();
+                        }
+                    }
+                    mainFrame.reset();
+        		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+        			e.printStackTrace();
+        		} catch (Exception e) {
+        			e.printStackTrace();
+        		  }
+            	                
+
+            }
+        });
+        
+        JMenuItem mac_OS_theme = new JMenuItem("Mac OS X Theme");
+        mac_OS_theme.setToolTipText("change default theme");
+        mac_OS_theme.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+        		try {
+        			for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+        				if ("Mac OS X".equals(info.getName())) {
+        					javax.swing.UIManager.setLookAndFeel(info.getClassName());
+        					m_theme=1;
+        					m_tbLogTable.setBackground(Color.WHITE);
+                			m_tbLogTable.init(m_theme,false);
+                			LogColor.COLOR_5 = Integer.parseInt("0x00000000".replace("0x", ""), 16);
+                			LogColor.COLOR_INFO  = LogColor.COLOR_6 = Integer.parseInt("0x00009A00".replace("0x", ""), 16);
+        					LogColor.COLOR_DEBUG = LogColor.COLOR_7 = Integer.parseInt("0x000000AA".replace("0x", ""), 16);
+        					LogColor.COLOR_BOOKMARK = Integer.parseInt("0x00DDDDDD".replace("0x", ""), 16);
+        					LogColor.COLOR_BOOKMARK2 = Integer.parseInt("0x00DDDDFF".replace("0x", ""), 16);
+        					break;
+        				}
+        			}
+        			Window[] windows = Window.getWindows ();
+                    if ( windows.length > 0 )
+                    {
+                        for ( Window window : windows )
+                        {
+                            SwingUtilities.updateComponentTreeUI ( window );
+                           // window.pack ();
+                        }
+                    }
+                    mainFrame.reset();
+        		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+        			e.printStackTrace();
+        		} catch (Exception e) {
+        			e.printStackTrace();
+        		  }
+            	                
+
+            }
+        });
+        
+     
+    
+        
+        
+        
+        JMenuItem flat_light = new JMenuItem("Flat Light");
+        flat_light.setToolTipText("change Flat Light theme");
+        flat_light.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+        		try {
+        	    	FlatLightLaf theme1 = new FlatLightLaf();
+        			UIManager.setLookAndFeel(theme1);
+        			
+        			m_theme=2;
+        			m_tbLogTable.setBackground(Color.WHITE);
+        			m_tbLogTable.init(m_theme,false);
+        			LogColor.COLOR_5 = Integer.parseInt("0x00000000".replace("0x", ""), 16);
+        			LogColor.COLOR_INFO  = LogColor.COLOR_6 = Integer.parseInt("0x00009A00".replace("0x", ""), 16);
+					LogColor.COLOR_DEBUG = LogColor.COLOR_7 = Integer.parseInt("0x000000AA".replace("0x", ""), 16);
+					LogColor.COLOR_BOOKMARK = Integer.parseInt("0x00DDDDDD".replace("0x", ""), 16);
+					LogColor.COLOR_BOOKMARK2 = Integer.parseInt("0x00DDDDFF".replace("0x", ""), 16);
+        			Window[] windows = Window.getWindows ();
+                    if ( windows.length > 0 )
+                    {
+                        for ( Window window : windows )
+                        {
+                            SwingUtilities.updateComponentTreeUI ( window );
+                        //    window.pack ();
+                        }
+                    }
+                    mainFrame.reset();
+        		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+        			e.printStackTrace();
+        		} catch (Exception e) {
+        			e.printStackTrace();
+        		  }
+            	
+            }
+        });
+        
+        JMenuItem flat_IntelliJ = new JMenuItem("Flat IntelliJ");
+        flat_IntelliJ.setToolTipText("change Flat IntelliJ theme");
+        flat_IntelliJ.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+        		try {
+        			FlatIntelliJLaf theme2 = new FlatIntelliJLaf();
+        			UIManager.setLookAndFeel(theme2);
+        			m_theme=3;
+        			m_tbLogTable.setBackground(Color.WHITE);
+        			m_tbLogTable.init(m_theme,false);
+        			LogColor.COLOR_5 = Integer.parseInt("0x00000000".replace("0x", ""), 16);
+        			LogColor.COLOR_INFO  = LogColor.COLOR_6 = Integer.parseInt("0x00009A00".replace("0x", ""), 16);
+					LogColor.COLOR_DEBUG = LogColor.COLOR_7 = Integer.parseInt("0x000000AA".replace("0x", ""), 16);
+					LogColor.COLOR_BOOKMARK = Integer.parseInt("0x00DDDDDD".replace("0x", ""), 16);
+					LogColor.COLOR_BOOKMARK2 = Integer.parseInt("0x00DDDDFF".replace("0x", ""), 16);
+        			Window[] windows = Window.getWindows ();
+                    if ( windows.length > 0 )
+                    {
+                        for ( Window window : windows )
+                        {
+                            SwingUtilities.updateComponentTreeUI ( window );
+                        //    window.pack ();
+                        }
+                    }
+                    mainFrame.reset();
+        		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+        			e.printStackTrace();
+        		} catch (Exception e) {
+        			e.printStackTrace();
+        		  }
+            	
+            }
+        });
+      
+        
+        JMenuItem flat_dark = new JMenuItem("Flat Dark");
+        flat_dark.setToolTipText("change Flat Dark theme");
+        flat_dark.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+        		try {
+        	    	FlatDarkLaf theme3 = new FlatDarkLaf();
+        			UIManager.setLookAndFeel(theme3);
+        			m_theme=4;
+        			Color dark_background = new Color(70,73,75);
+        			m_tbLogTable.setBackground(dark_background);
+        			m_tbLogTable.init(m_theme,false);
+        			LogColor.COLOR_5 = Integer.parseInt("0x00BBBBBB".replace("0x", ""), 16);
+        			LogColor.COLOR_INFO  = LogColor.COLOR_6 = Integer.parseInt("0x0073EAA8".replace("0x", ""), 16);
+					LogColor.COLOR_DEBUG = LogColor.COLOR_7 = Integer.parseInt("0x003CAEFF".replace("0x", ""), 16);
+					LogColor.COLOR_BOOKMARK = Integer.parseInt("0x00DDDDDD".replace("0x", ""), 16);
+					LogColor.COLOR_BOOKMARK2 = Integer.parseInt("0x00DDDDFF".replace("0x", ""), 16);
+        			Window[] windows = Window.getWindows ();
+                    if ( windows.length > 0 )
+                    {
+                        for ( Window window : windows )
+                        {
+                            SwingUtilities.updateComponentTreeUI ( window );
+                        //    window.pack ();
+                        }
+                    }
+                    mainFrame.reset();
+                    
+        		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+        			e.printStackTrace();
+        		} catch (Exception e) {
+        			e.printStackTrace();
+        		  }
+            	
+            }
+        });
+        
+        JMenuItem flat_darcula = new JMenuItem("Flat Darcula");
+        flat_darcula.setToolTipText("change Flat Darcula theme");
+        flat_darcula.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+        		try {
+        			FlatDarculaLaf theme4 = new FlatDarculaLaf();
+        			UIManager.setLookAndFeel(theme4);
+        			m_theme=5;
+        			Color darcula_background = new Color(70,73,75);
+        			m_tbLogTable.setBackground(darcula_background);
+        			m_tbLogTable.init(m_theme,false);
+					LogColor.COLOR_5 = Integer.parseInt("0x00BBBBBB".replace("0x", ""), 16);
+        			LogColor.COLOR_INFO  = LogColor.COLOR_6 = Integer.parseInt("0x0073EAA8".replace("0x", ""), 16);
+					LogColor.COLOR_DEBUG = LogColor.COLOR_7 = Integer.parseInt("0x003CAEFF".replace("0x", ""), 16);
+					LogColor.COLOR_BOOKMARK = Integer.parseInt("0x00DDDDDD".replace("0x", ""), 16);
+					LogColor.COLOR_BOOKMARK2 = Integer.parseInt("0x00DDDDFF".replace("0x", ""), 16);
+					Window[] windows = Window.getWindows();
+					if (windows.length > 0) {
+						for (Window window : windows )
+                        {
+                            SwingUtilities.updateComponentTreeUI ( window );
+                            //window.pack ();
+                        }
+                    }
+					mainFrame.reset();
+					//mainFrame.getBookmarkPanel();
+					
+        		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+        			e.printStackTrace();
+        		} catch (Exception e) {
+        			e.printStackTrace();
+        		  }
+            	
+            }
+        });
+        
+        
+        
+        
+		if (System.getProperty("os.name").indexOf("Windows") > -1) {
+			theme.add(default_theme);
+		} else {
+			theme.add(mac_OS_theme);
+		}
+		
+		
+		theme.add(flat_light);
+		theme.add(flat_IntelliJ);
+		theme.add(flat_dark);
+		theme.add(flat_darcula);
+
+		menubar.add(file);
+		menubar.add(theme);
+
+        mainFrame.setJMenuBar(menubar);
+        mainFrame.pack();
+        mainFrame.setSize(1600,800);
         if(args != null && args.length > 0)
         {
             EventQueue.invokeLater(new Runnable()
@@ -250,6 +508,13 @@ public class LogFilterMain extends JFrame implements INotiEvent
         }
     }
 
+	void reset() {
+		//exit();
+		if(m_Process!=null) {
+			stopProcess();
+			startProcess();
+		}
+	}
     String makeFilename()
     {
         Date now = new Date();
@@ -263,7 +528,7 @@ public class LogFilterMain extends JFrame implements INotiEvent
         if(m_thProcess != null) m_thProcess.interrupt();
         if(m_thWatchFile != null) m_thWatchFile.interrupt();
         if(m_thFilterParse != null) m_thFilterParse.interrupt();
-
+        saveTheme();
         saveFilter();
         saveColor();
         System.exit(0);
@@ -284,15 +549,155 @@ public class LogFilterMain extends JFrame implements INotiEvent
         });
         initValue();
         createComponent();
-
+        loadTheme();
         Container pane = getContentPane();
         pane.setLayout(new BorderLayout());
-
+      
         pane.add(getOptionPanel(), BorderLayout.NORTH);
         pane.add(getBookmarkPanel(), BorderLayout.WEST);
         pane.add(getStatusPanel(), BorderLayout.SOUTH);
-        pane.add(getTabPanel(), BorderLayout.CENTER);
+        pane.add(getTabPanel(m_theme), BorderLayout.CENTER);
 
+		switch (m_theme) {
+		case 0:
+			try {
+				m_theme=0;
+    			for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+    				if ("Metal".equals(info.getName())) {
+    					javax.swing.UIManager.setLookAndFeel(info.getClassName());
+    					break;
+    				}
+    			}
+    			Window[] windows = Window.getWindows ();
+                if ( windows.length > 0 )
+                {
+                    for ( Window window : windows )
+                    {
+                        SwingUtilities.updateComponentTreeUI ( window );
+                       // window.pack ();
+                    }
+                }
+    		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+    			e.printStackTrace();
+    		} catch (Exception e) {
+    			e.printStackTrace();
+    		  }
+        	       
+			break;
+		case 1:
+			try {
+				m_theme=1;
+    			for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+    				if ("Mac OS X".equals(info.getName())) {
+    					javax.swing.UIManager.setLookAndFeel(info.getClassName());
+    					break;
+    				}
+    			}
+    			Window[] windows = Window.getWindows ();
+                if ( windows.length > 0 )
+                {
+                    for ( Window window : windows )
+                    {
+                        SwingUtilities.updateComponentTreeUI ( window );
+                       // window.pack ();
+                    }
+                }
+    		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+    			e.printStackTrace();
+    		} catch (Exception e) {
+    			e.printStackTrace();
+    		  }
+        	     
+			break;
+		case 2:
+			try {
+				m_theme=2;
+    	    	FlatLightLaf theme1 = new FlatLightLaf();
+    			UIManager.setLookAndFeel(theme1);
+    			Window[] windows = Window.getWindows ();
+                if ( windows.length > 0 )
+                {
+                    for ( Window window : windows )
+                    {
+                        SwingUtilities.updateComponentTreeUI ( window );
+                    //    window.pack ();
+                    }
+                }
+    		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+    			e.printStackTrace();
+    		} catch (Exception e) {
+    			e.printStackTrace();
+    		  }
+        	
+			break;
+		case 3:
+			try {
+				m_theme=3;
+    			FlatIntelliJLaf theme2 = new FlatIntelliJLaf();
+    			UIManager.setLookAndFeel(theme2);
+    			Window[] windows = Window.getWindows ();
+                if ( windows.length > 0 )
+                {
+                    for ( Window window : windows )
+                    {
+                        SwingUtilities.updateComponentTreeUI ( window );
+                    //    window.pack ();
+                    }
+                }
+    		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+    			e.printStackTrace();
+    		} catch (Exception e) {
+    			e.printStackTrace();
+    		  }
+        	
+			break;
+		case 4:
+			try {
+    	    	FlatDarkLaf theme3 = new FlatDarkLaf();
+    			UIManager.setLookAndFeel(theme3);
+    			m_theme=4;
+    			Color dark_background = new Color(70,73,75);
+    			m_tbLogTable.setBackground(dark_background);
+    			Window[] windows = Window.getWindows ();
+                if ( windows.length > 0 )
+                {
+                    for ( Window window : windows )
+                    {
+                        SwingUtilities.updateComponentTreeUI ( window );
+                    //    window.pack ();
+                    }
+                }
+    		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+    			e.printStackTrace();
+    		} catch (Exception e) {
+    			e.printStackTrace();
+    		  }
+			break;
+		case 5:
+			try {
+    			FlatDarculaLaf theme4 = new FlatDarculaLaf();
+    			UIManager.setLookAndFeel(theme4);
+    			m_theme=5;
+    			Color darcula_background = new Color(70,73,75);
+    			m_tbLogTable.setBackground(darcula_background);
+    			Window[] windows = Window.getWindows ();
+                if ( windows.length > 0 )
+                {
+                    for ( Window window : windows )
+                    {
+                        SwingUtilities.updateComponentTreeUI ( window );
+                    //    window.pack ();
+                    }
+                }
+    		} catch (javax.swing.UnsupportedLookAndFeelException e) {
+    			e.printStackTrace();
+    		} catch (Exception e) {
+    			e.printStackTrace();
+    		  }
+			break;
+		
+			
+		}
         setDnDListener();
         addChangeListener();
         startFilterParse();
@@ -306,14 +711,15 @@ public class LogFilterMain extends JFrame implements INotiEvent
 
 //        if(m_nWindState == JFrame.MAXIMIZED_BOTH)
 //        else
-            setSize(m_nWinWidth, m_nWinHeight);
-            setExtendedState( m_nWindState );
+        setSize(m_nWinWidth, m_nWinHeight);
+        setExtendedState( m_nWindState );
         setMinimumSize(new Dimension(MIN_WIDTH, MIN_HEIGHT));
     }
     
     final String INI_FILE           = "LogFilter.ini";
     final String INI_FILE_CMD       = "LogFilterCmd.ini";
     final String INI_FILE_COLOR     = "LogFilterColor.ini";
+    final String INI_THEME          = "LogFilterTheme.ini";
     final String INI_LAST_DIR       = "LAST_DIR";
     final String INI_CMD_COUNT      = "CMD_COUNT";
     final String INI_CMD            = "CMD_";
@@ -334,12 +740,15 @@ public class LogFilterMain extends JFrame implements INotiEvent
     final String INI_COLOR_6        = "INI_COLOR_6(I)";
     final String INI_COLOR_7        = "INI_COLOR_7(D)";
     final String INI_COLOR_8        = "INI_COLOR_8(F)";
+    final String INI_COLOR_BOOKMARK = "INI_COLOR_BOOKMARK";
+    final String INI_COLOR_BOOKMARK2= "INI_COLOR_BOOKMARK2";
+   
     final String INI_HIGILIGHT_COUNT= "INI_HIGILIGHT_COUNT";
     final String INI_HIGILIGHT_=    "INI_HIGILIGHT_";
     final String INI_WIDTH          = "INI_WIDTH";
     final String INI_HEIGHT         = "INI_HEIGHT";
     final String INI_WINDOW_STATE   = "INI_WINDOW_STATE";
-
+    final String INI_THEME_MODE   	= "INI_THEME_MODE";
     final String INI_COMUMN         = "INI_COMUMN_";
     
     void loadCmd()
@@ -348,15 +757,15 @@ public class LogFilterMain extends JFrame implements INotiEvent
         {
             Properties p = new Properties();
             
-            // ini ÆÄÀÏ ÀÐ±â
+            // ini ï¿½ï¿½ï¿½ï¿½ ï¿½Ð±ï¿½
             p.load(new FileInputStream(INI_FILE_CMD));
             
-            T.d("p.getProperty(INI_CMD_COUNT) = " + p.getProperty(INI_CMD_COUNT));
+            //T.d("p.getProperty(INI_CMD_COUNT) = " + p.getProperty(INI_CMD_COUNT));
             int nCount = Integer.parseInt(p.getProperty(INI_CMD_COUNT));
-            T.d("nCount = " + nCount);
+            //T.d("nCount = " + nCount);
             for(int nIndex = 0; nIndex < nCount; nIndex++)
             {
-                T.d("CMD = " + INI_CMD + nIndex);
+                //T.d("CMD = " + INI_CMD + nIndex);
                 m_comboCmd.addItem(p.getProperty(INI_CMD + nIndex));
             }
         }
@@ -383,7 +792,10 @@ public class LogFilterMain extends JFrame implements INotiEvent
             LogColor.COLOR_INFO  = LogColor.COLOR_6 = Integer.parseInt(p.getProperty(INI_COLOR_6).replace("0x", ""), 16);
             LogColor.COLOR_DEBUG = LogColor.COLOR_7 = Integer.parseInt(p.getProperty(INI_COLOR_7).replace("0x", ""), 16);
             LogColor.COLOR_FATAL = LogColor.COLOR_8 = Integer.parseInt(p.getProperty(INI_COLOR_8).replace("0x", ""), 16);
-            
+            if(m_theme==4||m_theme==5) {
+            	LogColor.COLOR_BOOKMARK = Integer.parseInt("0x00DDDDDD".replace("0x", ""), 16);
+				LogColor.COLOR_BOOKMARK2 = Integer.parseInt("0x00DDDDFF".replace("0x", ""), 16);
+            }
             int nCount = Integer.parseInt(p.getProperty( INI_HIGILIGHT_COUNT, "0" ));
             if(nCount > 0)
             {
@@ -415,8 +827,21 @@ public class LogFilterMain extends JFrame implements INotiEvent
             p.setProperty(INI_COLOR_3, "0x" + Integer.toHexString(LogColor.COLOR_3).toUpperCase());
             p.setProperty(INI_COLOR_4, "0x" + Integer.toHexString(LogColor.COLOR_4).toUpperCase());
             p.setProperty(INI_COLOR_5, "0x" + Integer.toHexString(LogColor.COLOR_5).toUpperCase());
-            p.setProperty(INI_COLOR_6, "0x" + Integer.toHexString(LogColor.COLOR_6).toUpperCase());
-            p.setProperty(INI_COLOR_7, "0x" + Integer.toHexString(LogColor.COLOR_7).toUpperCase());
+           
+            if(m_theme==4||m_theme==5) {
+            	p.setProperty(INI_COLOR_5, "0x" + Integer.toHexString(LogColor.COLOR_VERBOSE).toUpperCase());
+            	p.setProperty(INI_COLOR_6, "0x" + Integer.toHexString(0x0073EAA8).toUpperCase());
+            	p.setProperty(INI_COLOR_7, "0x" + Integer.toHexString(LogColor.COLOR_DEBUG2).toUpperCase());
+            	p.setProperty(INI_COLOR_BOOKMARK, "0x" + Integer.toHexString(0x000A6E0A).toUpperCase());
+            	p.setProperty(INI_COLOR_BOOKMARK2, "0x" + Integer.toHexString(0x00FDF5DC).toUpperCase());
+            } else {
+            	p.setProperty(INI_COLOR_5, "0x" + Integer.toHexString(0x00000000).toUpperCase());
+            	p.setProperty(INI_COLOR_6, "0x" + Integer.toHexString(LogColor.COLOR_6).toUpperCase());
+            	p.setProperty(INI_COLOR_7, "0x" + Integer.toHexString(0x000000AA).toUpperCase());
+            	p.setProperty(INI_COLOR_BOOKMARK, "0x" + Integer.toHexString(LogColor.COLOR_BOOKMARK).toUpperCase());
+            	p.setProperty(INI_COLOR_BOOKMARK2, "0x" + Integer.toHexString(LogColor.COLOR_BOOKMARK2).toUpperCase());
+            	
+            }
             p.setProperty(INI_COLOR_8, "0x" + Integer.toHexString(LogColor.COLOR_8).toUpperCase());
 
             if(LogColor.COLOR_HIGHLIGHT != null)
@@ -434,16 +859,49 @@ public class LogFilterMain extends JFrame implements INotiEvent
         }
     }
     
+    void loadTheme()
+    {
+        try
+        {
+            Properties p = new Properties();
+            
+            // ini ï¿½ï¿½ï¿½ï¿½ ï¿½Ð±ï¿½
+            p.load(new FileInputStream(INI_THEME));
+            
+            // Key ï¿½ï¿½ ï¿½Ð±ï¿½    
+            m_theme = Integer.parseInt( p.getProperty( INI_THEME_MODE ));
+            T.d("p.getProperty(INI_THEME_MODE) = " + p.getProperty(INI_THEME_MODE));
+           
+        }
+        catch(Exception e)
+        {
+            System.out.println(e);
+        }
+    }
+    void saveTheme()
+    {
+        try
+        {  
+            Properties p = new Properties();
+
+            p.setProperty(INI_THEME_MODE,"" + m_theme);
+            p.store( new FileOutputStream(INI_THEME), "done.");
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
+    }
     void loadFilter()
     {
         try
         {
             Properties p = new Properties();
             
-            // ini ÆÄÀÏ ÀÐ±â
+            // ini ï¿½ï¿½ï¿½ï¿½ ï¿½Ð±ï¿½
             p.load(new FileInputStream(INI_FILE));
             
-            // Key °ª ÀÐ±â
+            // Key ï¿½ï¿½ ï¿½Ð±ï¿½
             String strFontType = p.getProperty(INI_FONT_TYPE);
             if(strFontType != null && strFontType.length() > 0)
                 m_jcFontType.setSelectedItem(p.getProperty(INI_FONT_TYPE));
@@ -457,7 +915,6 @@ public class LogFilterMain extends JFrame implements INotiEvent
             m_nWinWidth  = Integer.parseInt( p.getProperty( INI_WIDTH ));
             m_nWinHeight = Integer.parseInt( p.getProperty( INI_HEIGHT ));
             m_nWindState = Integer.parseInt( p.getProperty( INI_WINDOW_STATE ));
-            
             for(int nIndex = 0; nIndex < LogFilterTableModel.COMUMN_MAX; nIndex++)
             {
                 LogFilterTableModel.setColumnWidth( nIndex, Integer.parseInt( p.getProperty( INI_COMUMN + nIndex) ) );
@@ -491,7 +948,7 @@ public class LogFilterMain extends JFrame implements INotiEvent
             p.setProperty(INI_WIDTH,       "" + m_nWinWidth);
             p.setProperty(INI_HEIGHT,      "" + m_nWinHeight);
             p.setProperty(INI_WINDOW_STATE,"" + m_nWindState);
-
+           // p.setProperty(INI_THEME_MODE,"" + m_theme);
             for(int nIndex = 0; nIndex < LogFilterTableModel.COMUMN_MAX; nIndex++)
             {
                 p.setProperty(INI_COMUMN + nIndex, "" + m_tbLogTable.getColumnWidth(nIndex));
@@ -514,28 +971,31 @@ public class LogFilterMain extends JFrame implements INotiEvent
 
     void addDesc()
     {
-        addDesc(VERSION);
+    	addDesc(VERSION);
         addDesc("");
-        addDesc("Version 1.8 : java -jar LogFilter_xx.jar [filename] Ãß°¡");
-        addDesc("Version 1.7 : copy½Ã º¸ÀÌ´Â column¸¸ clipboard¿¡ º¹»ç(Line Á¦¿Ü)");
-        addDesc("Version 1.6 : cmdÄÞº¸¹Ú½º ±æÀÌ °íÁ¤");
-        addDesc("Version 1.5 : Highlight color listÃß°¡()");
-        addDesc("   - LogFilterColor.ini ¿¡ Ä«¿îÆ®¿Í °ª ³Ö¾î ÁÖ½Ã¸é µË´Ï´Ù.");
+        
+        addDesc("Version 2.0 : ë©”ë‰´ë°”ë¡œ í…Œë§ˆ ë³€ê²½ ì‹œ ë¶ë§ˆí¬ ê¸°ëŠ¥ ë™ìž‘í•˜ì§€ ì•ŠëŠ” ì´ìŠˆ ìˆ˜ì •");
+        addDesc("Version 1.9 : Mac OS í˜¸í™˜ ê¸°ëŠ¥, í…Œë§ˆ ì¶”ê°€");
+        addDesc("Version 1.8 : java -jar LogFilter_xx.jar [filename] ì¶”ê°€");
+        addDesc("Version 1.7 : copyì‹œ ë³´ì´ëŠ” columnë§Œ clipboardì— ë³µì‚¬(Line ì œì™¸)");
+        addDesc("Version 1.6 : cmdì½¤ë³´ë°•ìŠ¤ ê¸¸ì´ ê³ ì •");
+        addDesc("Version 1.5 : Highlight color listì¶”ê°€()");
+        addDesc("   - LogFilterColor.ini ì— ì¹´ìš´íŠ¸ì™€ ê°’ ë„£ì–´ ì£¼ì‹œë©´ ë©ë‹ˆë‹¤.");
         addDesc("   - ex)INI_HIGILIGHT_COUNT=2");
         addDesc("   -    INI_COLOR_HIGILIGHT_0=0xFFFF");
         addDesc("   -    INI_COLOR_HIGILIGHT_1=0x00FF");
-        addDesc("Version 1.4 : Ã¢Å©±â ÀúÀå");
-        addDesc("Version 1.3 : recent file ¹× open¸Þ´ºÃß°¡");
-        addDesc("Version 1.2 : Tid ÇÊÅÍ Ãß°¡");
-        addDesc("Version 1.1 : Level F Ãß°¡");
-        addDesc("Version 1.0 : Pid filter Ãß°¡");
-        addDesc("Version 0.9 : Font type Ãß°¡");
-        addDesc("Version 0.8 : ÇÊÅÍÃ¼Å© ¹Ú½º Ãß°¡");
-        addDesc("Version 0.7 : Ä¿³Î·Î±× ÆÄ½Ì/LogFilter.ini¿¡ ÄÃ·¯Á¤ÀÇ(0~7)");
-        addDesc("Version 0.6 : ÇÊÅÍ ´ë¼Ò¹® ¹«½Ã");
-        addDesc("Version 0.5 : ¸í·É¾î iniÆÄÀÏ·Î ÀúÀå");
-        addDesc("Version 0.4 : add thread option, filter ÀúÀå");
-        addDesc("Version 0.3 : ´Ü¸» ¼±ÅÃ ¾ÈµÇ´Â ¹®Á¦ ¼öÁ¤");
+        addDesc("Version 1.4 : ì°½í¬ê¸° ì €ìž¥");
+        addDesc("Version 1.3 : recent file ë° openë©”ë‰´ì¶”ê°€");
+        addDesc("Version 1.2 : Tid í•„í„° ì¶”ê°€");
+        addDesc("Version 1.1 : Level F ì¶”ê°€");
+        addDesc("Version 1.0 : Pid filter ì¶”ê°€");
+        addDesc("Version 0.9 : Font type ì¶”ê°€");
+        addDesc("Version 0.8 : í•„í„°ì²´í¬ ë°•ìŠ¤ ì¶”ê°€");
+        addDesc("Version 0.7 : ì»¤ë„ë¡œê·¸ íŒŒì‹±/LogFilter.iniì— ì»¬ëŸ¬ì •ì˜(0~7)");
+        addDesc("Version 0.6 : í•„í„° ëŒ€ì†Œë¬¸ ë¬´ì‹œ");
+        addDesc("Version 0.5 : ëª…ë ¹ì–´ iniíŒŒì¼ë¡œ ì €ìž¥");
+        addDesc("Version 0.4 : add thread option, filter ì €ìž¥");
+        addDesc("Version 0.3 : ë‹¨ë§ ì„ íƒ ì•ˆë˜ëŠ” ë¬¸ì œ ìˆ˜ì •");
         addDesc("");
         addDesc("[Tag]");
         addDesc("Alt+L/R Click : Show/Remove tag");
@@ -554,7 +1014,7 @@ public class LogFilterMain extends JFrame implements INotiEvent
     }
 
     /**
-     * @param nIndex    ½ÇÁ¦ ¸®½ºÆ®ÀÇ ÀÎµ¦½º
+     * @param nIndex    ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½
      * @param nLine     m_strLine
      * @param bBookmark
      */
@@ -828,7 +1288,7 @@ public class LogFilterMain extends JFrame implements INotiEvent
         m_tfShowTid     = new JTextField();
 
         JPanel jpMain = new JPanel(new BorderLayout());
-
+        
         JPanel jpWordFilter = new JPanel(new BorderLayout());
         jpWordFilter.setBorder(BorderFactory.createTitledBorder("Word filter"));
 
@@ -888,7 +1348,8 @@ public class LogFilterMain extends JFrame implements INotiEvent
         jpTagFilter.add(jpRemoveTag);
 
         jpMain.add(jpTagFilter, BorderLayout.CENTER);
-
+        
+        
         return jpMain;
     }
 
@@ -958,6 +1419,7 @@ public class LogFilterMain extends JFrame implements INotiEvent
 
         JPanel jpShowColumn = new JPanel();
         jpShowColumn.setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
+       
         jpShowColumn.setBorder(BorderFactory.createTitledBorder("Show column"));
         m_chkClmBookmark.setText("Mark");
         m_chkClmBookmark.setToolTipText("Bookmark");
@@ -977,6 +1439,8 @@ public class LogFilterMain extends JFrame implements INotiEvent
         m_chkClmTag.setSelected(true);
         m_chkClmMessage.setText("Msg");
         m_chkClmMessage.setSelected(true);
+   
+        //m_chkClmMessage.setSize(MAXIMIZED_HORIZ, DEFAULT_HEIGHT);
         jpShowColumn.add(m_chkClmBookmark);
         jpShowColumn.add(m_chkClmLine);
         jpShowColumn.add(m_chkClmDate);
@@ -1129,12 +1593,12 @@ public class LogFilterMain extends JFrame implements INotiEvent
         return m_tfStatus;
     }
 
-    Component getTabPanel()
+    Component getTabPanel(int theme)
     {
         m_tpTab = new JTabbedPane();
         m_tmLogTableModel = new LogFilterTableModel();
         m_tmLogTableModel.setData(m_arLogInfoAll);
-        m_tbLogTable = new LogTable(m_tmLogTableModel, this);
+        m_tbLogTable = new LogTable(m_tmLogTableModel, this,theme);
         m_iLogParser = new LogCatParser();
         m_tbLogTable.setLogParser(m_iLogParser);
 
@@ -1257,13 +1721,17 @@ public class LogFilterMain extends JFrame implements INotiEvent
             String strCommand = DEVICES_CMD[m_comboDeviceCmd.getSelectedIndex()];
             if(m_comboDeviceCmd.getSelectedIndex() == DEVICES_CUSTOM)
                 strCommand = (String)m_comboDeviceCmd.getSelectedItem();
+			if (System.getProperty("os.name").indexOf("Windows") < 0) {
+				strCommand = adb_path + "/" + "adb devices";
+			}
+			
             Process oProcess = Runtime.getRuntime().exec(strCommand);
 
-            // ¿ÜºÎ ÇÁ·Î±×·¥ Ãâ·Â ÀÐ±â
+            // ï¿½Üºï¿½ ï¿½ï¿½ï¿½Î±×·ï¿½ ï¿½ï¿½ï¿½ ï¿½Ð±ï¿½
             BufferedReader stdOut   = new BufferedReader(new InputStreamReader(oProcess.getInputStream()));
             BufferedReader stdError = new BufferedReader(new InputStreamReader(oProcess.getErrorStream()));
 
-            // "Ç¥ÁØ Ãâ·Â"°ú "Ç¥ÁØ ¿¡·¯ Ãâ·Â"À» Ãâ·Â
+            // "Ç¥ï¿½ï¿½ ï¿½ï¿½ï¿½"ï¿½ï¿½ "Ç¥ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½"ï¿½ï¿½ ï¿½ï¿½ï¿½
             while ((s =   stdOut.readLine()) != null)
             {
                 if(!s.equals("List of devices attached "))
@@ -1278,13 +1746,13 @@ public class LogFilterMain extends JFrame implements INotiEvent
                 listModel.addElement(s);
             }
 
-            // ¿ÜºÎ ÇÁ·Î±×·¥ ¹ÝÈ¯°ª Ãâ·Â (ÀÌ ºÎºÐÀº ÇÊ¼ö°¡ ¾Æ´Ô)
+            // ï¿½Üºï¿½ ï¿½ï¿½ï¿½Î±×·ï¿½ ï¿½ï¿½È¯ï¿½ï¿½ ï¿½ï¿½ï¿½ (ï¿½ï¿½ ï¿½Îºï¿½ï¿½ï¿½ ï¿½Ê¼ï¿½ï¿½ï¿½ ï¿½Æ´ï¿½)
             System.out.println("Exit Code: " + oProcess.exitValue());
         }
         catch(Exception e)
         {
             T.e("e = " + e);
-            listModel.addElement(e);
+            //listModel.addElement(e);
         }
     }
 
@@ -1381,10 +1849,22 @@ public class LogFilterMain extends JFrame implements INotiEvent
     String getProcessCmd()
     {
         if(m_lDeviceList.getSelectedIndex() < 0)
-            return ANDROID_DEFAULT_CMD_FIRST + m_comboCmd.getSelectedItem();
+			if (System.getProperty("os.name").indexOf("Windows") > -1) {
+				return ANDROID_DEFAULT_CMD_FIRST + m_comboCmd.getSelectedItem();
+			}
+			else {
+				return adb_path + "/"+ ANDROID_DEFAULT_CMD_FIRST + m_comboCmd.getSelectedItem();
+			}
+            
 //            return ANDROID_DEFAULT_CMD_FIRST + m_comboCmd.getSelectedItem() + makeFilename();
-        else
-            return ANDROID_SELECTED_CMD_FIRST + m_strSelectedDevice + m_comboCmd.getSelectedItem();
+        else {
+        	if (System.getProperty("os.name").indexOf("Windows") > -1) {
+        		return ANDROID_SELECTED_CMD_FIRST + m_strSelectedDevice + m_comboCmd.getSelectedItem();
+        	} else {
+        		return adb_path + "/"+ ANDROID_SELECTED_CMD_FIRST + m_strSelectedDevice + m_comboCmd.getSelectedItem();
+
+        	}
+        }
     }
 
     void setProcessCmd(int nType, String strSelectedDevice)
@@ -1446,6 +1926,7 @@ public class LogFilterMain extends JFrame implements INotiEvent
         if(m_Process != null) m_Process.destroy();
         if(m_thProcess != null) m_thProcess.interrupt();
         if(m_thWatchFile != null) m_thWatchFile.interrupt();
+        m_thWatchFile.currentThread().interrupt();
         m_Process = null;
         m_thProcess = null;
         m_thWatchFile = null;
@@ -1485,7 +1966,7 @@ public class LogFilterMain extends JFrame implements INotiEvent
 
                     while(true)
                     {
-                        Thread.sleep(50);
+                        //Thread.sleep(50);
 
                         if(m_nChangedFilter == STATUS_CHANGE || m_nChangedFilter == STATUS_PARSING)
                             continue;
@@ -1890,7 +2371,7 @@ public class LogFilterMain extends JFrame implements INotiEvent
                 pauseProcess();
             else if(e.getSource().equals(m_jcFontType))
             {
-                T.d("font = " + m_tbLogTable.getFont());
+                //T.d("font = " + m_tbLogTable.getFont());
                 
                 m_tbLogTable.setFont(new Font((String)m_jcFontType.getSelectedItem(), Font.PLAIN, 12));
                 m_tbLogTable.setFontSize(Integer.parseInt(m_tfFontSize.getText()));
@@ -2080,5 +2561,265 @@ public class LogFilterMain extends JFrame implements INotiEvent
 //            m_recentMenu.addEntry( file.getAbsolutePath() );
 //        }
     }
+    
+    public static void checkcommand() {
+
+		Process oProcess;
+		String s = "";
+		try {
+			if (System.getProperty("os.name").indexOf("Windows") > -1) {
+				oProcess = new ProcessBuilder("cmd", "/c", "adb", "devices").start();
+			} else {
+				oProcess = new ProcessBuilder("users").start();
+			}
+
+			BufferedReader stdOut = new BufferedReader(new InputStreamReader(oProcess.getInputStream()));
+			BufferedReader stdError = new BufferedReader(new InputStreamReader(oProcess.getErrorStream(), "UTF-8"));
+			int devices_count = 0;
+
+			while ((s = stdOut.readLine()) != null) {
+//				String[] temp = s.split(":");
+//				for(int i=0;i<temp.length;i++) {
+//					if(temp[i].contains("platform-tools")) {
+//						s=temp[i];
+//					}
+//				}
+//				int s_index = 0;
+////				if (s.length() > 0) {
+////					int l = 0, i = 0;
+////					do {
+////						l = s.indexOf("/", l + 1);
+////						i++;
+////						if (i > 1) {
+////							s_index = l;
+////							break;
+////						}
+////					} while (l + 1 < s.length() && l != -1);
+////				}
+//				System.out.println(s);
+				//s_index = s.indexOf("/",7);
+				//System.out.println(s_index);
+				//s = s.substring(0, s_index);
+				//System.out.println(s);
+				adb_path = "/Users/"+s + "/Library/Android/sdk/platform-tools";
+				//System.out.println(adb_path);
+			}
+
+			while ((s = stdError.readLine()) != null)
+				System.err.println("ERROR =>" + s);
+			stdOut.close();
+			stdError.close();
+			oProcess.getInputStream().close();
+
+		} catch (IOException e) {
+			System.err.println("Command Error!" + e.getMessage());
+			System.exit(-1);
+		}
+	}
+    
 }
+
+/*
+ * Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ * */
 

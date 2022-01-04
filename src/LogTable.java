@@ -46,7 +46,7 @@ public class LogTable extends JTable implements FocusListener, ActionListener
     int                                   m_nTagLength;
     boolean[]                             m_arbShow;
 
-    public LogTable(LogFilterTableModel tablemodel, LogFilterMain filterMain)
+    public LogTable(LogFilterTableModel tablemodel, LogFilterMain filterMain, int mode)
     {
         super(tablemodel);
         m_LogFilterMain = filterMain;
@@ -59,7 +59,7 @@ public class LogTable extends JTable implements FocusListener, ActionListener
         m_strFilterFind      = "";
         m_nTagLength         = 0;
         m_arbShow            = new boolean[LogFilterTableModel.COMUMN_MAX];
-        init();
+        init(mode,true);
         setColumnWidth();
     }
 
@@ -82,7 +82,7 @@ public class LogTable extends JTable implements FocusListener, ActionListener
             showRow(rowIndex);
     }
 
-    private void init() {
+    void init(int mode,boolean single) {
         KeyStroke copy = KeyStroke.getKeyStroke(KeyEvent.VK_C,ActionEvent.CTRL_MASK,false);
         registerKeyboardAction(this,"Copy",copy,JComponent.WHEN_FOCUSED);
 
@@ -103,10 +103,9 @@ public class LogTable extends JTable implements FocusListener, ActionListener
 
         for(int iIndex = 0; iIndex < getColumnCount(); iIndex++)
         {
-            getColumnModel().getColumn(iIndex).setCellRenderer(new LogCellRenderer());
+            getColumnModel().getColumn(iIndex).setCellRenderer(new LogCellRenderer(mode));
         }
-
-        addMouseListener(new MouseAdapter()
+        MouseAdapter mouseAdapter = new MouseAdapter()
         {
             public void mouseClicked( MouseEvent e )
             {
@@ -160,7 +159,11 @@ public class LogTable extends JTable implements FocusListener, ActionListener
                     }
                 }
             }
-        });
+		};
+		if (single) {
+			removeMouseListener(mouseAdapter);
+			addMouseListener(mouseAdapter);
+		}
         getTableHeader().addMouseListener(new ColumnHeaderListener());
     }
 
@@ -479,7 +482,11 @@ public class LogTable extends JTable implements FocusListener, ActionListener
     {
         private static final long serialVersionUID = 1L;
         boolean m_bChanged;
-
+        private int mode =0;
+        LogCellRenderer(int mode){
+        	super();
+        	this.mode = mode; 
+        }
         public Component getTableCellRendererComponent(JTable table,
                                                        Object value,
                                                        boolean isSelected,
@@ -496,17 +503,30 @@ public class LogTable extends JTable implements FocusListener, ActionListener
                                                               row,
                                                               column);
             LogInfo logInfo = ((LogFilterTableModel)getModel()).getRow(row);
+            //System.out.println(logInfo.m_bMarked+"!!!\n\n");
             c.setFont(getFont().deriveFont(m_fFontSize));
             c.setForeground(logInfo.m_TextColor);
             if(isSelected)
             {
-                if(logInfo.m_bMarked)
+                if(logInfo.m_bMarked) {
                     c.setBackground(new Color(LogColor.COLOR_BOOKMARK2));
+                    c.setForeground(Color.black);
+                }
             }
-            else if(logInfo.m_bMarked)
+            else if(logInfo.m_bMarked) {
                 c.setBackground(new Color(LogColor.COLOR_BOOKMARK));
-            else
-                c.setBackground(Color.WHITE);
+                c.setForeground(Color.black);
+            }
+            else {
+            	//System.out.println("mode = "+this.mode);
+            	if(this.mode==4||this.mode==5) {
+            		Color darcula_background = new Color(70,73,75);
+            		c.setBackground(darcula_background);
+            	} else {
+            		c.setBackground(Color.WHITE);
+            	}
+            	
+            }
 
             return c;
         }
@@ -519,8 +539,10 @@ public class LogTable extends JTable implements FocusListener, ActionListener
             m_bChanged = false;
 
             strText = strText.replace( " ", "\u00A0" );
-            if(LogColor.COLOR_HIGHLIGHT != null && LogColor.COLOR_HIGHLIGHT.length > 0)
+            if(LogColor.COLOR_HIGHLIGHT != null && LogColor.COLOR_HIGHLIGHT.length > 0) {
                 strText = remakeFind(strText, GetHighlight(), LogColor.COLOR_HIGHLIGHT, true);
+                
+        	}
             else
                 strText = remakeFind(strText, GetHighlight(), "#00FF00", true);
             strText = remakeFind(strText, strFind, "#FF0000", false);
@@ -548,8 +570,10 @@ public class LogTable extends JTable implements FocusListener, ActionListener
 
                 if(strText.toLowerCase().contains(strToken.toLowerCase()))
                 {
-                    if(bUseSpan)
+                    if(bUseSpan) {
                         newText = "<span style=\"background-color:#" + arColor[nIndex] + "\"><b>";
+                        newText+= "<font color=#BBBBBB\"><b>";
+                    }
                     else
                         newText = "<font color=#" + arColor[nIndex] + "><b>";
                     newText += strToken;
@@ -706,7 +730,7 @@ public class LogTable extends JTable implements FocusListener, ActionListener
         if(m_nTagLength < nLength)
         {
             m_nTagLength = nLength;
-            T.d("m_nTagLength = " + m_nTagLength);
+            //T.d("m_nTagLength = " + m_nTagLength);
         }
     }
 }

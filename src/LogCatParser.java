@@ -37,10 +37,12 @@ public class LogCatParser implements ILogParser
             return new Color(LogColor.COLOR_1);
         else if(logInfo.m_strLogLV.equals("2"))
             return new Color(LogColor.COLOR_2);
-        else if(logInfo.m_strLogLV.equals("5"))
+        else if(logInfo.m_strLogLV.equals("5") || logInfo.m_strLogLV.equals("V"))
             return new Color(LogColor.COLOR_5);
-        else
+       
+        else {
             return Color.BLACK;
+        }
     }
 
     public int getLogLV(LogInfo logInfo)
