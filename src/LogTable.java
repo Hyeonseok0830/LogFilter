@@ -487,6 +487,7 @@ public class LogTable extends JTable implements FocusListener, ActionListener
         	super();
         	this.mode = mode; 
         }
+       
         public Component getTableCellRendererComponent(JTable table,
                                                        Object value,
                                                        boolean isSelected,
@@ -506,6 +507,16 @@ public class LogTable extends JTable implements FocusListener, ActionListener
             //System.out.println(logInfo.m_bMarked+"!!!\n\n");
             c.setFont(getFont().deriveFont(m_fFontSize));
             c.setForeground(logInfo.m_TextColor);
+//            if (table.getRowHeight(row) != getPreferredSize().height) {
+//                table.setRowHeight(row, getPreferredSize().height);
+//            }
+            if(!logInfo.m_strMessage.contains("\r")&&logInfo.m_strMessage.length()>180) {
+            	String front = logInfo.m_strMessage.substring(0,logInfo.m_strMessage.length()/2);
+            	String back  = logInfo.m_strMessage.substring(logInfo.m_strMessage.length()/2);
+            	logInfo.m_strMessage = front + "\r\n" + back;
+            	c.setSize(1600, 50);
+            }
+            
             if(isSelected)
             {
                 if(logInfo.m_bMarked) {
